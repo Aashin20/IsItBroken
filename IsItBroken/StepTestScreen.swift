@@ -6,23 +6,24 @@
 //
 
 import SwiftUI
-import CoreHaptics
 
 struct StepTestScreen: View {
 
     @State private var stepCount: Int = 0
-    @State private var isTesting: Bool = false
+    
+    @State private var hasStartedTest: Bool = false
+    @State private var isCountingSteps: Bool = false
+    
     @State private var navigateToPalpation: Bool = false
     @State private var canBearWeight: Bool = false
     
     @State private var showInfoAlert: Bool = false
-    @State private var isPulsing: Bool = false // Controls the active button heartbeat
+    @State private var isPulsing: Bool = false
 
     let deepSlate   = Color(red: 0.15, green: 0.18, blue: 0.25)
     let calmingTeal = Color(red: 0.08, green: 0.62, blue: 0.62)
     let activeTeal  = Color(red: 0.45, green: 0.75, blue: 0.75)
     
-    // 1. Even lighter, softer yellow for the shrunken warning badge
     let ultraLightYellow = Color(red: 1.0, green: 0.98, blue: 0.88)
     let darkAmber        = Color(red: 0.6, green: 0.4, blue: 0.0)
 
@@ -34,30 +35,27 @@ struct StepTestScreen: View {
                 VStack(spacing: 0) {
                     headerView
 
-                    AssessmentProgressBar(currentStep: 0)
-
                     Spacer().frame(height: 30)
 
-                    // PRIMARY INSTRUCTION CARD
                     VStack(spacing: 12) {
-                        Text("4-STEP WALKING TEST")
+                        Text("STEP TEST")
                             .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundColor(calmingTeal)
                             .tracking(1.2)
                         
-                        HStack(alignment: .center, spacing: 10) {
-                            Text("Place your phone in your pocket and take 4 natural steps.")
+                        HStack(alignment: .bottom, spacing: 2) {
+                            Text("Place your phone in your pocket and take 4 steps")
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
                                 .foregroundColor(deepSlate)
                                 .multilineTextAlignment(.center)
                             
                             Button(action: {
                                 showInfoAlert = true
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             }) {
                                 Image(systemName: "info.circle.fill")
-                                    .font(.system(size: 22))
+                                    .font(.system(size: 18))
                                     .foregroundColor(calmingTeal.opacity(0.8))
+                                    .padding(.bottom, 3)
                             }
                         }
                     }
@@ -70,17 +68,14 @@ struct StepTestScreen: View {
                     )
                     .padding(.horizontal, 24)
 
-                    // 2. INCREASED SPACING (+12 pts)
                     Spacer(minLength: 42)
                     
                     stepCounterView
                     
-                    // 2. INCREASED SPACING (+12 pts)
                     Spacer(minLength: 32)
                     
-                    // 3. SHRUNKEN ANIMATED WARNING
                     ZStack {
-                        if isTesting {
+                        if hasStartedTest {
                             warningBadgeView
                                 .transition(.asymmetric(
                                     insertion: .scale(scale: 0.8).combined(with: .opacity).combined(with: .move(edge: .bottom)),
@@ -88,14 +83,20 @@ struct StepTestScreen: View {
                                 ))
                         }
                     }
-                    .frame(height: 32) // Reduced height boundary
-                    .animation(.spring(response: 0.5, dampingFraction: 0.7), value: isTesting)
+                    .frame(height: 32)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.7), value: hasStartedTest)
 
-                    Spacer(minLength: 32) // The final breather gap
+                    Spacer(minLength: 32)
 
                     actionButtons
                 }
             }
+            .sensoryFeedback(.impact(weight: .light), trigger: showInfoAlert)
+            .sensoryFeedback(.success, trigger: hasStartedTest) { oldValue, newValue in
+                return newValue == true
+            }
+            .sensoryFeedback(.impact(weight: .heavy, intensity: 1.0), trigger: stepCount)
+            
             .alert("Walking Guidelines", isPresented: $showInfoAlert) {
                 Button("Got it", role: .cancel) { }
             } message: {
@@ -107,8 +108,6 @@ struct StepTestScreen: View {
             }
         }
     }
-
-    // MARK: - Subviews
 
     private var headerView: some View {
         HStack(spacing: 6) {
@@ -147,99 +146,108 @@ struct StepTestScreen: View {
         .frame(width: 240, height: 240)
     }
     
-    // 3. THE REFINED, SHRUNKEN WARNING BADGE
     private var warningBadgeView: some View {
         HStack(spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 12)) // Shrunk icon
+                .font(.system(size: 12))
             Text("Stop immediately on severe pain")
-                .font(.system(size: 13)) // Shrunk text
+                .font(.system(size: 13))
         }
         .foregroundColor(darkAmber)
-        .padding(.horizontal, 14) // Reduced padding
-        .padding(.vertical, 8)    // Reduced padding
-        .background(ultraLightYellow) // Paler yellow
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(ultraLightYellow)
         .cornerRadius(8)
-        .shadow(color: Color.black.opacity(0.03), radius: 4, x: 0, y: 2) // Softer shadow
+        .shadow(color: Color.black.opacity(0.03), radius: 4, x: 0, y: 2)
     }
 
     private var actionButtons: some View {
         VStack(spacing: 16) {
-            // 4. THE BREATHING / PULSING ACTIVE BUTTON
-            Button(action: handlePrimaryButton) {
-                Text(isTesting ? "Counting Steps..." : "Start Test")
+            Button(action: {
+                if !hasStartedTest {
+                    withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                        hasStartedTest = true
+                    }
+                } else if !isCountingSteps {
+                    startAutomatedTest()
+                }
+            }) {
+                Text(primaryButtonText)
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
                     .foregroundColor(.white)
-                    .frame(maxWidth: .infinity).padding()
+                    .frame(maxWidth: .infinity)
+                    .padding()
                     .background(
                         RoundedRectangle(cornerRadius: 16)
-                            .fill(isTesting ? activeTeal : calmingTeal)
+                            .fill(isCountingSteps ? activeTeal : calmingTeal)
                     )
-                    .shadow(color: (isTesting ? activeTeal : calmingTeal).opacity(isTesting && isPulsing ? 0.6 : 0.3), radius: 10, x: 0, y: 5)
+                    .shadow(color: (isCountingSteps ? activeTeal : calmingTeal).opacity(isCountingSteps && isPulsing ? 0.6 : 0.3), radius: 10, x: 0, y: 5)
             }
-            .buttonStyle(ScaleButtonStyle())
-            // Drops opacity to 80% dynamically giving it a heartbeat effect
-            .opacity(isTesting ? (isPulsing ? 0.8 : 1.0) : 1.0)
-            .animation(isTesting ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true) : .default, value: isPulsing)
+            .buttonStyle(.plain)
+            .opacity(isCountingSteps ? (isPulsing ? 0.8 : 1.0) : 1.0)
+            .disabled(isCountingSteps)
+            .animation(isCountingSteps ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true) : .default, value: isPulsing)
+            .contentTransition(.opacity)
 
-            // 5. TEXT-ONLY DESTRUCTIVE BUTTON WITH ARROW
-            Button(action: failTest) {
-                HStack(spacing: 6) {
+            if hasStartedTest && !isCountingSteps {
+                Button(action: failTest) {
                     Text("I Can’t Put Weight on My Foot")
-                        .font(.system(size: 14))
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color(UIColor.systemGray6).opacity(0.8))
+                        )
                 }
-                .font(.body.weight(.semibold)) // Using semantic iOS text weights
-                .foregroundColor(.red)
-                .padding(.vertical, 8)
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.95)),
+                    removal: .opacity.combined(with: .move(edge: .top)).combined(with: .scale(scale: 0.95))
+                ))
             }
-            .opacity(isTesting ? 1.0 : 0.0)
-            .disabled(!isTesting)
         }
         .padding(.horizontal, 30).padding(.bottom, 30)
+        .animation(.spring(response: 0.5, dampingFraction: 0.75), value: hasStartedTest)
+        .animation(.spring(response: 0.5, dampingFraction: 0.75), value: isCountingSteps)
     }
-
-    // MARK: - Logic
-
-    private func handlePrimaryButton() {
-        if isTesting { simulateStep() } else { startTest() }
+    
+    private var primaryButtonText: String {
+        if !hasStartedTest { return "Start Test" }
+        if isCountingSteps { return "Walking..." }
+        return "I Can Walk 4 Steps"
     }
-
-    private func startTest() {
+    
+    private func startAutomatedTest() {
         withAnimation {
-            isTesting = true
+            isCountingSteps = true
             stepCount = 0
         }
-        // Starts the heartbeat animation immediately
         isPulsing = true
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        
+        Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { timer in
+            DispatchQueue.main.async {
+                if self.stepCount < 4 {
+                    self.stepCount += 1
+                }
+                
+                if self.stepCount == 4 {
+                    timer.invalidate()
+                    self.isPulsing = false
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                        self.isCountingSteps = false
+                        self.canBearWeight = true
+                        self.navigateToPalpation = true
+                    }
+                }
+            }
+        }
     }
 
     private func failTest() {
-        // Stop the heartbeat
         isPulsing = false
         canBearWeight = false
         navigateToPalpation = true
-    }
-
-    private func simulateStep() {
-        guard stepCount < 4 else { return }
-        stepCount += 1
-        triggerStepHaptic()
-        if stepCount == 4 {
-            // Test success
-            isPulsing = false
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-                isTesting = false
-                canBearWeight = true
-                navigateToPalpation = true
-            }
-        }
-    }
-
-    private func triggerStepHaptic() {
-        let generator = UIImpactFeedbackGenerator(style: .heavy)
-        generator.prepare()
-        generator.impactOccurred(intensity: 1.0)
     }
 }

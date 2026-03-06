@@ -11,7 +11,7 @@ import SwiftUI
 struct IsItBrokenApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AssessmentOnboardingScreen()
         }
     }
 }

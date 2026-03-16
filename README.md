@@ -22,7 +22,7 @@ Ankle injuries are among the most common physical traumas, often leading to unne
 
 ## 📸 Screenshots
 
-| ![Onboarding](https://i.ibb.co/yB4nRvGQ/Onboarding.png) | ![Step Test](https://ibb.co/0zLXJLR) | ![Palpation Test](https://ibb.co/RkHnJXcK) | ![Result Screen](https://ibb.co/hJcywxSB)
+| ![Onboarding](https://i.ibb.co/yB4nRvGQ/Onboarding.png) | ![Step Test](https://i.ibb.co/9d0vY0k/Simulator-Screenshot-i-Phone-16-Pro-2026-02-28-at-11-48-29.png) | ![Palpation Test](https://i.ibb.co/gLg1c0J8/Palpation-Test.png) | ![Result Screen](https://i.ibb.co/4n273wH8/Simulator-Screenshot-i-Phone-16-Pro-2026-02-28-at-11-50-08.png)
 
 ## ⚠️ Disclaimer
 
